@@ -239,16 +239,24 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         _groundspeed_vector = Vector2f(cosf(get_yaw()), sinf(get_yaw())) * groundSpeed;
     }
 
-    // İleri bakış (L1) mesafesinin hesaplanması (0.3183099f = 1/pi)
+    // İleri bakış (L1) mesafesinin hesaplanması (Orijinal ArduPilot hesabı)
     _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
-
 
     // --- INTERCEPTOR PURE PURSUIT (SAF TAKİP) MANTIĞI BAŞLANGICI ---
    
-    // 1. Uçaktan anlık hedefe (next_WP) doğrudan bir vektör çiz (Line of Sight)
+    // 1. Uçaktan anlık hedefe (next_WP) doğrudan bir vektör çiz
     Vector2f ucak_hedef_vektoru = _current_loc.get_distance_NE(next_WP);
+    
+    // 1.A. HEDEFLE ARADAKİ GERÇEK MESAFEYİ HESAPLA
+    float gercek_mesafe = ucak_hedef_vektoru.length();
 
-    // 2. Hedefin uçağa göre açısını bul (Radyan cinsinden Target Bearing)
+    // 1.B. DİNAMİK L1 KONTROLÜ (SENİN MANTIĞIN)
+    // Eğer hedefin gerçek mesafesi, ArduPilot'un hesapladığı L1 balonundan daha küçükse:
+    if (gercek_mesafe < _L1_dist) {
+        _L1_dist = MAX(gercek_mesafe, 5.0f); 
+    }
+
+    // 2. Hedefin uçağa göre açısını bul
     float target_bearing = atan2f(ucak_hedef_vektoru.y, ucak_hedef_vektoru.x);
 
     // 3. Uçağın anlık hız vektörünün açısını bul
