@@ -201,8 +201,7 @@ void AP_L1_Control::_prevent_indecision(float &Nu)
     }
 }
 
-// update L1 control for waypoint navigation
-// update L1 control for waypoint navigation (MODIFIED FOR INTERCEPTOR PURE PURSUIT)
+// waypoint navigasyonunu guncelliyorum (avci ucak saf takip modifiyesi)
 void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &next_WP, float dist_min)
 {
     Location _current_loc;
@@ -211,7 +210,7 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     uint32_t now = AP_HAL::micros();
     float dt = (now - _last_update_waypoint_us) * 1.0e-6f;
     if (dt > 1) {
-        // controller hasn't been called for an extended period of time. Reinitialise it.
+        // kontrolcu uzun sure cagrilmadiysa bastan baslatiyorum
         _L1_xtrack_i = 0.0f;
     }
     if (dt > 0.1) {
@@ -219,10 +218,10 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     }
     _last_update_waypoint_us = now;
 
-    // Calculate L1 gain required for specified damping
+    // ucak yalpalamasin diye L1 kazancini (K_L1) ayarliyorum
     float K_L1 = 4.0f * _L1_damping * _L1_damping;
 
-    // Get current position and velocity
+    // ucagin anlik konumunu aliyorum, alamazsam cikiyorum
     if (_ahrs.get_location(_current_loc) == false) {
         _data_is_stale = true;
         return;
@@ -239,62 +238,62 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         _groundspeed_vector = Vector2f(cosf(get_yaw()), sinf(get_yaw())) * groundSpeed;
     }
 
-    // İleri bakış (L1) mesafesinin hesaplanması (Orijinal ArduPilot hesabı)
+    // ardupilotun kendi ileri bakis (L1) mesafesini hesapliyorum
     _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
 
-    // --- INTERCEPTOR PURE PURSUIT (SAF TAKİP) MANTIĞI BAŞLANGICI ---
+    // --- benim saf takip (pure pursuit) mantigim basliyor ---
    
-    // 1. Uçaktan anlık hedefe (next_WP) doğrudan bir vektör çiz
+    // 1. ucaktan hedefe dogrudan bir vektor ciziyorum
     Vector2f ucak_hedef_vektoru = _current_loc.get_distance_NE(next_WP);
     
-    // 1.A. HEDEFLE ARADAKİ GERÇEK MESAFEYİ HESAPLA
+    // 2. hedefle aramdaki gercek mesafeyi olcuyorum
     float gercek_mesafe = ucak_hedef_vektoru.length();
 
-    // 1.B. DİNAMİK L1 KONTROLÜ (SENİN MANTIĞIN)
-    // Eğer hedefin gerçek mesafesi, ArduPilot'un hesapladığı L1 balonundan daha küçükse:
+    // 3. dinamik L1 kontrolu: eger hedef L1 mesafesinden daha yakindaysa
+    // ardupilotun L1 balonunu ezip direkt gercek mesafeye esitliyorum (min 5 metre)
     if (gercek_mesafe < _L1_dist) {
         _L1_dist = MAX(gercek_mesafe, 5.0f); 
     }
 
-    // 2. Hedefin uçağa göre açısını bul
+    // 4. hedefin ucağa gore acisini buluyorum
     float target_bearing = atan2f(ucak_hedef_vektoru.y, ucak_hedef_vektoru.x);
 
-    // 3. Uçağın anlık hız vektörünün açısını bul
+    // 5. ucagin burnunun baktigi aciyi buluyorum
     float ucak_bearing = atan2f(_groundspeed_vector.y, _groundspeed_vector.x);
 
-    // 4. Hata açısını (Nu / Eta) hesapla (-pi ile +pi arasına sıkıştırarak)
+    // 6. aradaki aci farkini hesaplayip -pi ile +pi arasina sikistiriyorum
     Nu = wrap_PI(target_bearing - ucak_bearing);
 
-    // 5. Arayüz ve loglar için navigasyon yönelimini hedefe kilitle
+    // loglarda duzgun gorunsun diye navigasyon acisini hedefe kilitliyorum
     _nav_bearing = target_bearing; 
 
-    // Avcı konseptinde çizgi takibi (A'dan B'ye) yapmadığımız için çapraz hata sıfırdır
+    // biz cizgi degil hareketli hedef takip ettigimiz icin capraz hatayi (crosstrack error) sifirliyorum
     _crosstrack_error = 0.0f;
 
-    // --- INTERCEPTOR PURE PURSUIT (SAF TAKİP) MANTIĞI BİTİŞİ ---
+    // --- saf takip mantigi bitti ---
 
     _prevent_indecision(Nu);
     _last_Nu = Nu;
 
-    // Hata açısı Nu'yu +- 90 derece (Pi/2) ile sınırla
+    // ucak sacmalamasin diye hata acisini +- 90 derece ile sinirliyorum
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
     
-    // Yanal İvme (Yatış) Komutu: a = 2 * V^2 / L1 * sin(Nu) 
-    // (ArduPilot K_L1 çarpanını içinde 2 barındıracak şekilde yukarıda ayarlıyor)
+    // yanal ivme (yatis) emrini hesaplayip ucaga gonderiyorum
     _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
 
     _WPcircle = false;
     _last_loiter.reached_loiter_target_ms = 0;
-    _bearing_error = Nu; // bearing error angle (radians)
+    _bearing_error = Nu; 
     _data_is_stale = false; 
 }
 
-// update L1 control for loitering (INTERCEPTOR İÇİN İPTAL EDİLDİ - SAF TAKİBE DÖNÜŞTÜRÜLDÜ)
+
+// normalde loiter (cember cizme) fonksiyonu ama ben bunu da saf takibe cevirdim
 void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_t loiter_direction)
 {
     Location _current_loc;
 
-    // Konum alınamıyorsa çık
+    // konumu bulamazsak cikis yapiyorum
     if (_ahrs.get_location(_current_loc) == false) {
         _data_is_stale = true;
         return;
@@ -303,21 +302,20 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
     Vector2f _groundspeed_vector = _ahrs.groundspeed_vector();
     float groundSpeed = MAX(_groundspeed_vector.length(), 1.0f);
     
-    // Kazanç ve L1 mesafe hesaplamaları
+    // kazanc ve L1 mesafesini tekrar hesapliyorum
     float K_L1 = 4.0f * _L1_damping * _L1_damping;
     _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, 1.0f);
 
-
-    // DAIRE CIZME (LOITER) MANTIGI SİLİNDİ! YERİNE SAF TAKİP EKLENDİ
+    // ardupilotun cember cizme mantigini tamamen sildim, yerine direkt ustune ucmasini (saf takip) yazdim
     
-    // 1. Uçaktan hedefe doğrudan vektör çiz
+    // 1. ucaktan hedefe vektorumu ciziyorum
     Vector2f ucak_hedef_vektoru = _current_loc.get_distance_NE(center_WP);
 
-    // 2. Açıları hesapla
+    // 2. acilari hesapliyorum
     float target_bearing = atan2f(ucak_hedef_vektoru.y, ucak_hedef_vektoru.x);
     float ucak_bearing = atan2f(_groundspeed_vector.y, _groundspeed_vector.x);
 
-    // 3. Hata açısı
+    // 3. aradaki aci farki
     float Nu = wrap_PI(target_bearing - ucak_bearing);
     
     _nav_bearing = target_bearing;
@@ -325,10 +323,10 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
 
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
     
-    // 4. Şiddetli yatış emrini bas!
+    // 4. dogrudan hedefe donmesi icin yatis ivmesini basiyorum
     _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
 
-    // 5. ArduPilot'u kandır: "Daire çizmiyorum!" de.
+    // 5. ardupilotu daire cizmedigime inandirmak icin wbpcircle bayragini false yapiyorum :)
     _WPcircle = false; 
     _bearing_error = Nu; 
     _data_is_stale = false; 
