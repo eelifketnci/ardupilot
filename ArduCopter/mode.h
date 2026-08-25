@@ -1242,17 +1242,29 @@ private:
 // benim eklediğim L1 flight mode 
 class ModeSTT : public Mode {
 public:
-    // Modun aktif olup olamayacağını denetler (örn. havada mıyız?)
+    // Standart Fonksiyonlar
     bool init(bool ignore_checks) override;
-    
-    // Saniyede 400 kez (400Hz) çalışan ana kontrol döngüsü
     void run() override;
 
     bool is_autopilot() const override { return true; }
+    bool requires_position() const override { return true; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(AP_Arming::Method method) const override { return false; }
+    Number mode_number() const override { return Number::L1_STT; }
+
+    // Dışarıdan (Python/MAVLink) Hedef Koordinatı Alma Fonksiyonu (NED - Metre)
+    void set_target_pos_ned(const Vector3f &target_pos) {
+        _target_pos = target_pos;
+        _has_target = true;
+    }
 
 protected:
     const char *name() const override { return "STT_MISSILE"; }
     const char *name4() const override { return "STTM"; }
+
+private:
+    Vector3f _target_pos; // Takip edilecek anlık hedef (Kuzey, Doğu, Aşağı)
+    bool _has_target = false;
 };
 
 #if AP_SCRIPTING_ENABLED

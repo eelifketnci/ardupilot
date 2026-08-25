@@ -641,3 +641,7 @@
 #ifndef USER_PARAMS_ENABLED
   #define USER_PARAMS_ENABLED 0
 #endif
+//yeni ekledim
+#ifndef MODE_L1_STT_ENABLED
+#define MODE_L1_STT_ENABLED 1
+#endif
