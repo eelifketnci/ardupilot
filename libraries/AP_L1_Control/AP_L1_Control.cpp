@@ -278,9 +278,10 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     // ucak sacmalamasin diye hata acisini +- 90 derece ile sinirliyorum
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
     
-    // yanal ivme (yatis) emrini hesaplayip ucaga gonderiyorum
+    // yanal ivme (yatis) emrini ve yaw hizini hesaplayip ucaga gonderiyorum 
     _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
-
+    _yaw_rate_dem = _latAccDem / groundSpeed;
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "L1 ALGORITMASI CALISIYOR!");
     _WPcircle = false;
     _last_loiter.reached_loiter_target_ms = 0;
     _bearing_error = Nu; 
@@ -323,10 +324,11 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
 
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
     
-    // 4. dogrudan hedefe donmesi icin yatis ivmesini basiyorum
+    // 4. dogrudan hedefe donmesi icin yatis ivmesini ve yaw hizini hesapliyorum
     _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    _yaw_rate_dem = _latAccDem / groundSpeed;
 
-    // 5. ardupilotu daire cizmedigime inandirmak icin wbpcircle bayragini false yapiyorum :)
+    // 5. ardupilotu daire cizmedigime inandirmak icin wbpcircle bayragini false yapiyorum
     _WPcircle = false; 
     _bearing_error = Nu; 
     _data_is_stale = false; 

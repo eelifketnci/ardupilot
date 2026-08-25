@@ -101,6 +101,7 @@ public:
         AUTOROTATE =   26,  // Autonomous autorotation
         AUTO_RTL =     27,  // Auto RTL, this is not a true mode, AUTO will report as this mode if entered to perform a DO_LAND_START Landing sequence
         TURTLE =       28,  // Flip over after crash
+        L1_STT =       29,   // L1 Skid-to-Turn mode 
 
         // Mode number 30 reserved for "offboard" for external/lua control.
 
@@ -1236,6 +1237,22 @@ private:
 
     // guided mode is paused or not
     bool _paused;
+};
+
+// benim eklediğim L1 flight mode 
+class ModeSTT : public Mode {
+public:
+    // Modun aktif olup olamayacağını denetler (örn. havada mıyız?)
+    bool init(bool ignore_checks) override;
+    
+    // Saniyede 400 kez (400Hz) çalışan ana kontrol döngüsü
+    void run() override;
+
+    bool is_autopilot() const override { return true; }
+
+protected:
+    const char *name() const override { return "STT_MISSILE"; }
+    const char *name4() const override { return "STTM"; }
 };
 
 #if AP_SCRIPTING_ENABLED

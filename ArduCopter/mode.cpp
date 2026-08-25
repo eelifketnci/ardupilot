@@ -151,6 +151,10 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
         case Mode::Number::TURTLE:
             return &mode_turtle;
 #endif
+#if MODE_L1_STT_ENABLED
+        case Mode::Number::L1_STT:
+            return &mode_l1_stt;
+#endif
 
         default:
             break;

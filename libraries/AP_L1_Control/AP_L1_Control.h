@@ -36,6 +36,9 @@ public:
     int32_t nav_roll_cd(void) const override;
     float lateral_acceleration(void) const override;
 
+    // return the desired yaw rate (radians/sec)
+    float yaw_rate_demanded(void) const { return _yaw_rate_dem; }
+
     // return the desired track heading angle(centi-degrees)
     int32_t nav_bearing_cd(void) const override;
 
@@ -84,6 +87,9 @@ private:
     // lateral acceration in m/s required to fly to the
     // L1 reference point (+ve to right)
     float _latAccDem;
+
+    // L1 yaw rate
+    float _yaw_rate_dem;
 
     // L1 tracking distance in meters which is dynamically updated
     float _L1_dist;

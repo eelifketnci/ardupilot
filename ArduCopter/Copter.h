@@ -1103,6 +1103,9 @@ private:
 #if MODE_TURTLE_ENABLED
     ModeTurtle mode_turtle;
 #endif
+#if MODE_L1_STT_ENABLED
+    ModeSTT mode_l1_stt;
+#endif
 
     // mode.cpp
     Mode *mode_from_mode_num(const Mode::Number mode);
