@@ -127,8 +127,8 @@ try:
 
         # Hedeflerin Hareketi (Dinamik Kaçış)
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000006
-            hedef['lon'] += 0.000006
+            hedef['lat'] += 0.000002
+            hedef['lon'] += 0.000002
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
 
@@ -140,7 +140,7 @@ try:
         mesafe_gecmisi.append(aktif_mesafe)
 
         # Hedef Vurulma Kontrolü (Hit Radius: 5m)
-        VURMA_YARICAPI = 5.0
+        VURMA_YARICAPI = 3.0
         if aktif_mesafe < VURMA_YARICAPI:
             print(f"*** HEDEF {secili_hedef['id']} YOK EDILDI! (Mesafe: {aktif_mesafe:.1f}m) ***")
             vurus_noktalari.append((avci_lon, avci_lat, secili_hedef['id']))
@@ -160,10 +160,12 @@ try:
             ax1.clear(); ax2.clear(); ax3.clear(); ax4.clear()
 
             # 1. Canlı Yörünge
+            ax1.scatter(home_lon, home_lat, color='black', marker='o', s=100, label='Başlangıç Noktası', zorder=5)
             ax1.plot(avci_lon_gecmisi, avci_lat_gecmisi, label='Avci (C++ STT)', color='blue', linewidth=2)
             renkler = ['red', 'orange', 'purple']
             for id_num, hist in hedef_gecmisleri.items():
                 if hist['lon']:
+                    ax1.scatter(hist['lon'][-1], hist['lat'][-1], color=renkler[(id_num-1)%len(renkler)], marker='X', s=150, label=f'Target-{id_num} (Son Konum)', zorder=5)
                     ax1.plot(hist['lon'], hist['lat'], color=renkler[(id_num-1)%len(renkler)], linestyle='--')
                     ax1.text(hist['lon'][-1], hist['lat'][-1], f" Target-{id_num}", fontsize=8)
             for vn in vurus_noktalari:

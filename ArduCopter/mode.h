@@ -1239,7 +1239,6 @@ private:
     bool _paused;
 };
 
-// benim eklediğim L1 flight mode 
 class ModeSTT : public Mode {
 public:
     // Standart Fonksiyonlar
@@ -1252,9 +1251,19 @@ public:
     bool allows_arming(AP_Arming::Method method) const override { return false; }
     Number mode_number() const override { return Number::L1_STT; }
 
-    // Dışarıdan (Python/MAVLink) Hedef Koordinatı Alma Fonksiyonu (NED - Metre)
+    // Dışarıdan hedefi alır ve HIZINI (Velocity) hesaplar
     void set_target_pos_ned(const Vector3f &target_pos) {
+        uint32_t now = AP_HAL::millis(); 
+        
+        if (_has_target) {
+            float dt = (now - _last_target_ms) / 1000.0f; 
+            if (dt > 0.02f && dt < 2.0f) { 
+                _target_vel.x = (target_pos.x - _target_pos.x) / dt; 
+                _target_vel.y = (target_pos.y - _target_pos.y) / dt; 
+            }
+        }
         _target_pos = target_pos;
+        _last_target_ms = now;
         _has_target = true;
     }
 
@@ -1263,8 +1272,12 @@ protected:
     const char *name4() const override { return "STTM"; }
 
 private:
-    Vector3f _target_pos; // Takip edilecek anlık hedef (Kuzey, Doğu, Aşağı)
+    Vector3f _target_pos; 
     bool _has_target = false;
+    
+    // Tahmini Önleme Noktası (Lead Intercept) için geçmiş veriler
+    uint32_t _last_target_ms = 0;
+    Vector2f _target_vel; 
 };
 
 #if AP_SCRIPTING_ENABLED

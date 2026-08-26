@@ -1206,33 +1206,50 @@ void GCS_MAVLINK_Copter::handle_message_set_position_target_global_int(const mav
 }
 #endif  // MODE_GUIDED_ENABLED
 
-void GCS_MAVLINK_Copter::handle_message(const mavlink_message_t &msg)
-{
+void GCS_MAVLINK_Copter::handle_message(const mavlink_message_t &msg) 
+{ 
+    switch (msg.msgid) { 
+#if MODE_GUIDED_ENABLED 
+    case MAVLINK_MSG_ID_SET_ATTITUDE_TARGET: 
+        handle_message_set_attitude_target(msg); 
+        break; 
 
-    switch (msg.msgid) {
-#if MODE_GUIDED_ENABLED
-    case MAVLINK_MSG_ID_SET_ATTITUDE_TARGET:
-        handle_message_set_attitude_target(msg);
-        break;
-    case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:
-        handle_message_set_position_target_local_ned(msg);
-        break;
-    case MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT:
-        handle_message_set_position_target_global_int(msg);
-        break;
+    case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED: {
+#if MODE_L1_STT_ENABLED
+        // 1. Eger su anki mod L1_STT ise, mesaji biz ele geciriyoruz!
+        if (copter.flightmode->mode_number() == Mode::Number::L1_STT) {
+            mavlink_set_position_target_local_ned_t packet;
+            mavlink_msg_set_position_target_local_ned_decode(&msg, &packet);
+            
+            // X, Y, Z koordinatlarini al
+            Vector3f hedef(packet.x, packet.y, packet.z);
+            
+            // L1_STT moduna hedefi gonder
+            copter.mode_l1_stt.set_target_pos_ned(hedef);
+            
+            break; // Break diyerek islemi bitiriyoruz (asagidaki fonksiyona gitmesin)
+        }
 #endif
-
-#if TOY_MODE_ENABLED
-    case MAVLINK_MSG_ID_NAMED_VALUE_INT:
-        copter.g2.toy_mode.handle_message(msg);
-        break;
-#endif
-    default:
-        GCS_MAVLINK::handle_message(msg);
-        break;
+        // 2. Eger L1_STT modunda degilsek, ArduPilot normal isleyisine devam etsin
+        handle_message_set_position_target_local_ned(msg); 
+        break; 
     }
-}
 
+    case MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT: 
+        handle_message_set_position_target_global_int(msg); 
+        break; 
+#endif 
+
+#if TOY_MODE_ENABLED 
+    case MAVLINK_MSG_ID_NAMED_VALUE_INT: 
+        copter.g2.toy_mode.handle_message(msg); 
+        break; 
+#endif 
+    default: 
+        GCS_MAVLINK::handle_message(msg); 
+        break; 
+    } 
+}
 MAV_RESULT GCS_MAVLINK_Copter::handle_flight_termination(const mavlink_command_int_t &packet) {
 #if AP_COPTER_ADVANCED_FAILSAFE_ENABLED
     if (GCS_MAVLINK::handle_flight_termination(packet) == MAV_RESULT_ACCEPTED) {
