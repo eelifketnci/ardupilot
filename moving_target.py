@@ -56,7 +56,7 @@ def gps_to_ned_m(lat, lon, origin_lat, origin_lon):
     return north, east
 
 # Görev ve Hedef Tanımları
-hedef_sayisi = 3
+hedef_sayisi = 8
 hedefler = []
 
 print("Baslangic konumu aliniyor...")
@@ -90,7 +90,7 @@ hedef_gecmisleri = {i+1: {'lat': [], 'lon': []} for i in range(hedef_sayisi)}
 # Canlı Grafik Ekranı (2x2)
 plt.ion()
 fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 9))
-fig.canvas.manager.set_window_title('C++ Onboard L1-STT Otonom Önleme Ekranı')
+fig.canvas.manager.set_window_title('C++ Onboard L1-STT Ekranı')
 plt.tight_layout(pad=3.5)
 plt.show(block=False)
 son_cizim_zamani = time.time()
@@ -127,14 +127,43 @@ try:
 
         # Hedeflerin Hareketi (Dinamik Kaçış)
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000002
-            hedef['lon'] += 0.000002
+            hedef['lat'] += 0.000008
+            hedef['lon'] += 0.000008
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
 
-        # En Yakın Hedefi Seç
+        # En Yakın ve Açısal Olarak En Uygun Hedefi Seç (Maliyet Fonksiyonu)
         if secili_hedef is None or secili_hedef['yokedildi']:
-            secili_hedef = min(kalan_hedefler, key=lambda h: calculate_distance(avci_lat, avci_lon, h['lat'], h['lon']))
+            
+            # Uçağın anlık yönelimini (Yaw) al (Radyan cinsinden, Kuzey = 0)
+            ucak_yaw = att_msg.yaw if att_msg else 0.0
+            
+            en_iyi_hedef = None
+            en_dusuk_maliyet = float('inf')
+            
+            for hedef in kalan_hedefler:
+                # 1. Mesafe Hesabı (Metre)
+                mesafe = calculate_distance(avci_lat, avci_lon, hedef['lat'], hedef['lon'])
+                
+                # 2. Açısal Fark (Heading Error) Hesabı
+                # Drone'un şu anki konumunu merkez alarak hedefin yönünü buluyoruz
+                hedef_n, hedef_e = gps_to_ned_m(hedef['lat'], hedef['lon'], avci_lat, avci_lon)
+                hedef_acisi = math.atan2(hedef_e, hedef_n)
+                
+                # Açıyı -pi ile +pi arasına sıkıştırıyoruz ki 359 derece ile 1 derece arasındaki fark devasa çıkmasın
+                aci_farki = abs(hedef_acisi - ucak_yaw)
+                aci_farki = math.atan2(math.sin(aci_farki), math.cos(aci_farki)) 
+                aci_farki = abs(aci_farki) # Sağa veya sola dönmek bizim için aynı maliyette
+                
+                # 3. MALIYET (COST) FONKSIYONU
+                # 1 Radyanlık (57 derece) ters açı = 40 metrelik ceza puanı (Bunu uçuşa göre artırıp azaltabilirsin)
+                maliyet = mesafe + (aci_farki * 40.0) 
+                
+                if maliyet < en_dusuk_maliyet:
+                    en_dusuk_maliyet = maliyet
+                    en_iyi_hedef = hedef
+            
+            secili_hedef = en_iyi_hedef
 
         aktif_mesafe = calculate_distance(avci_lat, avci_lon, secili_hedef['lat'], secili_hedef['lon'])
         mesafe_gecmisi.append(aktif_mesafe)
@@ -160,9 +189,9 @@ try:
             ax1.clear(); ax2.clear(); ax3.clear(); ax4.clear()
 
             # 1. Canlı Yörünge
-            ax1.scatter(home_lon, home_lat, color='black', marker='o', s=100, label='Başlangıç Noktası', zorder=5)
+            ax1.scatter(home_lon, home_lat, color='cyan', marker='o', s=80, label='Başlangıç Noktası', zorder=5)
             ax1.plot(avci_lon_gecmisi, avci_lat_gecmisi, label='Avci (C++ STT)', color='blue', linewidth=2)
-            renkler = ['red', 'orange', 'purple']
+            renkler = ['red', 'orange', 'purple', 'brown', 'magenta', 'yellow', 'black', 'gray']
             for id_num, hist in hedef_gecmisleri.items():
                 if hist['lon']:
                     ax1.scatter(hist['lon'][-1], hist['lat'][-1], color=renkler[(id_num-1)%len(renkler)], marker='X', s=150, label=f'Target-{id_num} (Son Konum)', zorder=5)
