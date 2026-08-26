@@ -10,6 +10,19 @@ print("Baglanti bekleniyor...")
 master.wait_heartbeat()
 print("Ucaga baglanildi!")
 
+# ---------------- KRİTİK RESETLEME BLOĞU ----------------
+print("Önceki ucustan kalan C++ hafizasi temizleniyor...")
+# Uçağı zorla GUIDED (Mod 4) moduna alarak Mod 29'dan çıkmasını sağlıyoruz.
+master.mav.command_long_send(
+    master.target_system, master.target_component,
+    mavutil.mavlink.MAV_CMD_DO_SET_MODE, 0,
+    mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+    4, 0, 0, 0, 0, 0
+)
+time.sleep(1.5) # Otopilotun C++ sınıfını (ModeSTT) kapatması için süre tanı
+print("Hafiza temizlendi. Yeni goreve hazir!")
+# --------------------------------------------------------
+
 # 1. Özel L1_STT Moduna (29) Geçiş Fonksiyonu
 def set_stt_mode(master):
     master.mav.command_long_send(
@@ -56,18 +69,31 @@ def gps_to_ned_m(lat, lon, origin_lat, origin_lon):
     return north, east
 
 # Görev ve Hedef Tanımları
-hedef_sayisi = 8
+hedef_sayisi = 1
 hedefler = []
 
-print("Baslangic konumu aliniyor...")
-msg = master.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
-baslangic_lat = msg.lat / 1e7
-baslangic_lon = msg.lon / 1e7
-home_lat, home_lon = baslangic_lat, baslangic_lon
+print("Baslangic konumu ve otopilot orijini (NED) esitleniyor...")
+
+# İçerideki eski mesajları temizle
+while master.recv_match(type='GLOBAL_POSITION_INT', blocking=False): pass
+while master.recv_match(type='LOCAL_POSITION_NED', blocking=False): pass
+
+# Hem GPS hem de kalkışa göre anlık Metre (NED) konumunu al
+msg_gps = master.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
+msg_ned = master.recv_match(type='LOCAL_POSITION_NED', blocking=True)
+
+# Uçağın script yeniden başlatıldığı andaki GPS konumu
+script_start_lat = msg_gps.lat / 1e7
+script_start_lon = msg_gps.lon / 1e7
+home_lat, home_lon = script_start_lat, script_start_lon
+
+# İŞTE KRİTİK VERİ: Uçağın C++ (SITL) orijinine göre havada bulunduğu anki ofseti (metre)
+script_start_n = msg_ned.x
+script_start_e = msg_ned.y
 
 for i in range(hedef_sayisi):
-    hedef_lat = baslangic_lat + random.uniform(-0.0015, 0.0015)
-    hedef_lon = baslangic_lon + random.uniform(-0.0015, 0.0015)
+    hedef_lat = script_start_lat + random.uniform(-0.0015, 0.0015)
+    hedef_lon = script_start_lon + random.uniform(-0.0015, 0.0015)
     hedefler.append({
         'id': i + 1,
         'lat': hedef_lat,
@@ -178,7 +204,13 @@ try:
             continue
 
         # Hedef Koordinatlarını NED Metreye Çevir ve C++ Otopilotuna Gönder
-        target_n, target_e = gps_to_ned_m(secili_hedef['lat'], secili_hedef['lon'], home_lat, home_lon)
+        # 1. Hedefin Python'ın başladığı noktaya göre metre farkı
+        target_dn, target_de = gps_to_ned_m(secili_hedef['lat'], secili_hedef['lon'], script_start_lat, script_start_lon)
+        
+        # 2. Bu farkı C++'ın gerçek orijinine (kalkış noktasına) ekleyerek senkronize et
+        target_n = script_start_n + target_dn
+        target_e = script_start_e + target_de
+        
         send_target_to_drone(master, target_n, target_e, -secili_hedef['alt'])
 
         if gecen_sure % 1.0 < 0.1:
