@@ -32,7 +32,7 @@ def hesapla_kerteriz(lat1, lon1, lat2, lon2):
     return (kerteriz + 360) % 360
 
 # rastgele 7 tane sahte hedef olusturuyorum
-hedef_sayisi = 7
+hedef_sayisi = 1
 hedefler = []
 
 print("Uçağın baslangic konumu aliniyor...")
