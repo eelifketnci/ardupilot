@@ -526,6 +526,20 @@ void Plane::calc_throttle()
  */
 int16_t Plane::calc_nav_yaw_coordinated()
 {
+    // --- STT (SKID-TO-TURN) INTERCEPTOR MODU --- (ben ekledim
+    // Eğer uçak otonom bir guided modundaysa, L1'den gelen STT yaw rate komutunu doğrudan uygula!
+    if (control_mode != nullptr && nav_controller != nullptr && control_mode->is_guided_mode()) {
+        const float speed_scaler = get_speed_scaler();
+        
+        // L1 kütüphanesinden hesapladığımız hedef dönüş hızını çekiyoruz
+        float target_yaw_rate_cd = ((AP_L1_Control*)nav_controller)->nav_yaw_rate_cd();
+        
+        // ArduPlane'in hız kontrollü PID'sine verip rudder komutunu alıyoruz
+        int16_t commanded_rudder = yawController.get_rate_out(target_yaw_rate_cd, speed_scaler, false);
+        
+        return constrain_int16(commanded_rudder, -4500, 4500);
+    }
+    //orijinal kod aşağısı
     const float speed_scaler = get_speed_scaler();
     bool disable_integrator = false;
     int16_t rudder_in = rudder_input();

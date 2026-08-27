@@ -12,7 +12,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Range: 1 60
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("PERIOD",    0, AP_L1_Control, _L1_period, 5.0f),
+    AP_GROUPINFO("PERIOD",    0, AP_L1_Control, _L1_period, 7.0f),
 
     // @Param: DAMPING
     // @DisplayName: L1 control damping ratio
@@ -78,20 +78,8 @@ int32_t AP_L1_Control::get_yaw_sensor() const
  */
 int32_t AP_L1_Control::nav_roll_cd(void) const
 {
-    float ret;
-	/*
-		formula can be obtained through equations of balanced spiral:
-		liftForce * cos(roll) = gravityForce * cos(pitch);
-		liftForce * sin(roll) = gravityForce * lateralAcceleration / gravityAcceleration; // as mass = gravityForce/gravityAcceleration
-		see issue 24319 [https://github.com/ArduPilot/ardupilot/issues/24319]
-		Multiplier 100.0f is for converting degrees to centidegrees
-		Made changes to avoid zero division as proposed by Andrew Tridgell: https://github.com/ArduPilot/ardupilot/pull/24331#discussion_r1267798397		 
-	*/
-	float pitchLimL1 = radians(60); // Suggestion: constraint may be modified to pitch limits if their absolute values are less than 90 degree and more than 60 degrees.
-	float pitchL1 = constrain_float(_ahrs.get_pitch_rad(),-pitchLimL1,pitchLimL1);
-    ret = degrees(atanf(_latAccDem * (1.0f/(GRAVITY_MSS * cosf(pitchL1))))) * 100.0f;
-    ret = constrain_float(ret, -9000, 9000);
-    return ret;
+    //roll is canceled for STT, so return 0
+    return 0;
 }
 
 /*
@@ -201,7 +189,7 @@ void AP_L1_Control::_prevent_indecision(float &Nu)
     }
 }
 
-// waypoint navigasyonunu guncelliyorum (avci ucak saf takip modifiyesi)
+// waypoint navigasyonunu guncelliyorum (saf takip modifiyesi)
 void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &next_WP, float dist_min)
 {
     Location _current_loc;
@@ -280,6 +268,15 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     
     // yanal ivme (yatis) emrini hesaplayip ucaga gonderiyorum
     _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    // 2. L1 algoritmasının ürettiği yanal ivme (m/s^2)
+    float lat_accel = _latAccDem; 
+    // 3. Sıfıra bölünme hatasını önlemek için minimum 1 m/s hız sınırı koy
+    float ground_speed = MAX(_ahrs.groundspeed(), 1.0f); 
+    // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden)
+    float yaw_rate_rads = lat_accel / ground_speed;
+    // 5. ArduPlane kontrolcüsü için radyanı derece/saniyeye (veya centidegree) çevir
+    float yaw_rate_degs = degrees(yaw_rate_rads);
+    _nav_yaw_rate_cd = (int32_t)(yaw_rate_degs * 100.0f); // centidegree cinsinden
 
     _WPcircle = false;
     _last_loiter.reached_loiter_target_ms = 0;
@@ -325,6 +322,15 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
     
     // 4. dogrudan hedefe donmesi icin yatis ivmesini basiyorum
     _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    // 2. L1 algoritmasının ürettiği yanal ivme (m/s^2)
+    float lat_accel = _latAccDem; 
+    // 3. Sıfıra bölünme hatasını önlemek için minimum 1 m/s hız sınırı koy
+    float ground_speed = MAX(_ahrs.groundspeed(), 1.0f); 
+    // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden)
+    float yaw_rate_rads = lat_accel / ground_speed;
+    // 5. ArduPlane kontrolcüsü için radyanı derece/saniyeye (veya centidegree) çevir
+    float yaw_rate_degs = degrees(yaw_rate_rads);
+    _nav_yaw_rate_cd = (int32_t)(yaw_rate_degs * 100.0f); // centidegree cinsinden
 
     // 5. ardupilotu daire cizmedigime inandirmak icin wbpcircle bayragini false yapiyorum :)
     _WPcircle = false; 
