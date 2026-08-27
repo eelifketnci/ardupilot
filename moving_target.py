@@ -10,7 +10,7 @@ print("Baglanti bekleniyor...")
 master.wait_heartbeat()
 print("Ucaga baglanildi!")
 
-# ---------------- KRİTİK RESETLEME BLOĞU ----------------
+# ---------------- RESETLEME BLOĞU ----------------
 print("Önceki ucustan kalan C++ hafizasi temizleniyor...")
 # Uçağı zorla GUIDED (Mod 4) moduna alarak Mod 29'dan çıkmasını sağlıyoruz.
 master.mav.command_long_send(
@@ -19,7 +19,7 @@ master.mav.command_long_send(
     mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
     4, 0, 0, 0, 0, 0
 )
-time.sleep(1.5) # Otopilotun C++ sınıfını (ModeSTT) kapatması için süre tanı
+time.sleep(1.5) #kapatması için süre tanı
 print("Hafiza temizlendi. Yeni goreve hazir!")
 # --------------------------------------------------------
 
@@ -69,7 +69,7 @@ def gps_to_ned_m(lat, lon, origin_lat, origin_lon):
     return north, east
 
 # Görev ve Hedef Tanımları
-hedef_sayisi = 1
+hedef_sayisi = 4
 hedefler = []
 
 print("Baslangic konumu ve otopilot orijini (NED) esitleniyor...")
@@ -87,7 +87,7 @@ script_start_lat = msg_gps.lat / 1e7
 script_start_lon = msg_gps.lon / 1e7
 home_lat, home_lon = script_start_lat, script_start_lon
 
-# İŞTE KRİTİK VERİ: Uçağın C++ (SITL) orijinine göre havada bulunduğu anki ofseti (metre)
+#Uçağın C++ (SITL) orijinine göre havada bulunduğu anki ofseti (metre)
 script_start_n = msg_ned.x
 script_start_e = msg_ned.y
 
@@ -98,7 +98,7 @@ for i in range(hedef_sayisi):
         'id': i + 1,
         'lat': hedef_lat,
         'lon': hedef_lon,
-        'alt': 15.0,
+        'alt': 30.0,
         'yokedildi': False
     })
 
@@ -109,18 +109,18 @@ start_time = time.time()
 # Grafikler için geçmiş kayıtları
 avci_lat_gecmisi, avci_lon_gecmisi = [], []
 zaman_gecmisi, mesafe_gecmisi = [], []
-roll_gecmisi = []
 vurus_noktalari = []
 hedef_gecmisleri = {i+1: {'lat': [], 'lon': []} for i in range(hedef_sayisi)}
-
 # Canlı Grafik Ekranı (2x2)
 plt.ion()
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 9))
-fig.canvas.manager.set_window_title('C++ Onboard L1-STT Ekranı')
+fig, ((ax1, ax2)) = plt.subplots(2, 1, figsize=(10, 10))
+fig.canvas.manager.set_window_title('L1-STT Ekranı')
 plt.tight_layout(pad=3.5)
 plt.show(block=False)
 son_cizim_zamani = time.time()
+son_print_zamani = time.time()
 secili_hedef = None
+
 
 try:
     while True:
@@ -136,25 +136,24 @@ try:
         avci_lon = msg.lon / 1e7
         gecen_sure = su_an - start_time
         
-        anlik_roll = math.degrees(att_msg.roll) if att_msg else 0.0
 
         avci_lat_gecmisi.append(avci_lat)
         avci_lon_gecmisi.append(avci_lon)
         zaman_gecmisi.append(gecen_sure)
-        roll_gecmisi.append(anlik_roll)
+
 
         kalan_hedefler = [h for h in hedefler if not h['yokedildi']]
 
         if not kalan_hedefler:
-            print(f"\nTEBRIKLER! Tum hedefler {gecen_sure:.1f} saniyede C++ L1-STT ile vuruldu!")
+            print(f"\nTEBRIKLER! Tum hedefler {gecen_sure:.1f} saniyede L1-STT ile vuruldu!")
             plt.ioff()
             plt.show()
             break
 
         # Hedeflerin Hareketi (Dinamik Kaçış)
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000008
-            hedef['lon'] += 0.000008
+            hedef['lat'] += 0.000009
+            hedef['lon'] += 0.000009
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
 
@@ -181,8 +180,8 @@ try:
                 aci_farki = math.atan2(math.sin(aci_farki), math.cos(aci_farki)) 
                 aci_farki = abs(aci_farki) # Sağa veya sola dönmek bizim için aynı maliyette
                 
-                # 3. MALIYET (COST) FONKSIYONU
-                # 1 Radyanlık (57 derece) ters açı = 40 metrelik ceza puanı (Bunu uçuşa göre artırıp azaltabilirsin)
+                # 3. MALIYET FONKSIYONU
+                # 1 Radyanlık (57 derece) ters açı = 40 metrelik ceza puanı
                 maliyet = mesafe + (aci_farki * 40.0) 
                 
                 if maliyet < en_dusuk_maliyet:
@@ -213,25 +212,26 @@ try:
         
         send_target_to_drone(master, target_n, target_e, -secili_hedef['alt'])
 
-        if gecen_sure % 1.0 < 0.1:
-            print(f"Hedef-{secili_hedef['id']} | Mesafe: {aktif_mesafe:.1f}m | C++ Roll (Yatis): {anlik_roll:.2f}° (0° Hedef)")
+        if su_an - son_print_zamani > 0.3:
+            print(f"Hedef-{secili_hedef['id']} | Mesafe: {aktif_mesafe:.1f}m | Hedef sayisi: {len(kalan_hedefler)} | Zaman: {gecen_sure:.1f}s")
+            son_print_zamani = su_an
 
         # Grafik Çizimi (150 ms aralıkla)
         if su_an - son_cizim_zamani > 0.15:
-            ax1.clear(); ax2.clear(); ax3.clear(); ax4.clear()
+            ax1.clear(); ax2.clear()
 
             # 1. Canlı Yörünge
             ax1.scatter(home_lon, home_lat, color='cyan', marker='o', s=80, label='Başlangıç Noktası', zorder=5)
-            ax1.plot(avci_lon_gecmisi, avci_lat_gecmisi, label='Avci (C++ STT)', color='blue', linewidth=2)
+            ax1.plot(avci_lon_gecmisi, avci_lat_gecmisi, label='Drone', color='blue', linewidth=2)
             renkler = ['red', 'orange', 'purple', 'brown', 'magenta', 'yellow', 'black', 'gray']
             for id_num, hist in hedef_gecmisleri.items():
                 if hist['lon']:
-                    ax1.scatter(hist['lon'][-1], hist['lat'][-1], color=renkler[(id_num-1)%len(renkler)], marker='X', s=150, label=f'Target-{id_num} (Son Konum)', zorder=5)
+                    ax1.scatter(hist['lon'][-1], hist['lat'][-1], color=renkler[(id_num-1)%len(renkler)], marker='X', s=70, label=f'Target-{id_num} (Son Konum)', zorder=5)
                     ax1.plot(hist['lon'], hist['lat'], color=renkler[(id_num-1)%len(renkler)], linestyle='--')
                     ax1.text(hist['lon'][-1], hist['lat'][-1], f" Target-{id_num}", fontsize=8)
             for vn in vurus_noktalari:
-                ax1.scatter(vn[0], vn[1], color='green', marker='*', s=250, zorder=5)
-            ax1.set_title('1. Görev Yörüngesi ve Önleme Noktaları')
+                ax1.scatter(vn[0], vn[1], color='green', marker='*', s=150, zorder=5)
+            ax1.set_title('1. Görev Yörüngesi (Canlı Konumlar)')
             ax1.grid(True); ax1.axis('equal'); ax1.legend()
 
             # 2. Kilitlenme Mesafesi
@@ -239,21 +239,7 @@ try:
             ax2.axhline(y=VURMA_YARICAPI, color='red', linestyle='--', label=f'İmha Sınırı ({VURMA_YARICAPI}m)')
             ax2.set_title('2. Hedefe Kalan Mesafe (m)')
             ax2.grid(True); ax2.legend()
-
-            # 3. Sıfır Yatış (STT Kanıtı)
-            ax3.plot(zaman_gecmisi[-len(roll_gecmisi):], roll_gecmisi, color='crimson', linewidth=2)
-            ax3.axhline(y=0.0, color='green', linestyle='--', linewidth=2, label='STT Referans (0°)')
-            ax3.set_title('3. Gövde Yatış Açısı (Roll °) - STT Doğrulaması')
-            ax3.set_ylabel('Roll (Derece)'); ax3.set_xlabel('Zaman (s)')
-            ax3.set_ylim([-10, 10])
-            ax3.grid(True); ax3.legend()
-
-            # 4. Hedeften Kaçış / Yaklaşma Profili
-            ax4.plot(zaman_gecmisi[-len(mesafe_gecmisi):], mesafe_gecmisi, color='darkblue', linewidth=2)
-            ax4.set_title('4. Yaklaşma Eğrisi')
-            ax4.set_xlabel('Zaman (s)'); ax4.set_ylabel('Mesafe (m)')
-            ax4.grid(True)
-
+            
             plt.pause(0.001)
             son_cizim_zamani = su_an
 

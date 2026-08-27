@@ -36,7 +36,7 @@ void ModeSTT::run() {
     // 3. KLASİK L1 ALGORİTMASI (Sürekli Yay Çizimi)
     // -----------------------------------------------------------------
     float _L1_damping = 0.75f;// L1 damping katsayisi
-    float _L1_period = 3.0f; // Saniye cinsinden referans donus periyodu
+    float _L1_period = 4.0f; // Saniye cinsinden referans donus periyodu
     
     // L1 Mesafesi Hesabı
     float L1_dist = 0.3183099f * _L1_damping * _L1_period * groundSpeed;
@@ -60,14 +60,14 @@ void ModeSTT::run() {
     float yaw_rate_cds = yaw_rate_dem * 57.2958f * 100.0f;
 
     // -----------------------------------------------------------------
-    // 5. BAĞIMSIZ FİZİKSEL İRTİFA KOMPANZASYONU (API Hatası Önleyici)
+    // 5. BAĞIMSIZ FİZİKSEL İRTİFA KOMPANZASYONU 
     // -----------------------------------------------------------------
     float current_alt = -current_pos.z; 
     float target_alt = -_target_pos.z; // hedefin  irtifası python tarafindan NED koordinat sistemine çevrilmiş olarak geliyor
     float alt_error = target_alt - current_alt;
     
     float Kp_z = 0.05f; // 1 metre hata için %5 gaz artışı (0.05) 
-    float thrust_z_hedef = motors->get_throttle_hover() + (alt_error * Kp_z);
+    float thrust_z_hedef = motors->get_throttle_hover() + (alt_error * Kp_z); // hedef irtifaya göre gaz komutu (0 ~ 1 arası)
     
     // Pitch açısından kaynaklı dikey itki kaybını kosinüs ile toparla
     float pitch_rad = fabsf(pitch_cd * 0.01f * DEG_TO_RAD); // pitch komutunu radyana çevir
