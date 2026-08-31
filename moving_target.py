@@ -72,6 +72,7 @@ fig.canvas.manager.set_window_title('Otonom Önleme Ekranı')
 plt.tight_layout(pad=4.0)
 plt.show(block=False) 
 son_cizim_zamani = time.time()
+son_komut_zamani = 0 # YENİ EKLENEN SAYAÇ
 # ana görev dongusune basliyoruz
 secili_hedef = None  
 
@@ -199,16 +200,18 @@ try:
 
         print(f"target-{secili_hedef['id']} | Mod: {gudum_modu} | Hız: {hedef_hizi_ms:.1f}m/s | Mesafe: {aktif_mesafe:.1f}m")
         
-        # ardupilota nereye gidecegini soyluyorum
-        master.mav.command_int_send(
-            master.target_system, master.target_component,
-            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
-            mavutil.mavlink.MAV_CMD_DO_REPOSITION,
-            0, 0, -1.0, mavutil.mavlink.MAV_DO_REPOSITION_FLAGS_CHANGE_MODE,
-            0.0, 0.0, int(hedef_komut_lat * 1e7), int(hedef_komut_lon * 1e7), secili_hedef['alt']
-        )
-        
+       # ardupilota nereye gidecegini soyluyorum (SADECE 0.5 SANİYEDE BİR GÖNDER)
+        if su_an - son_komut_zamani > 0.5:
+            master.mav.command_int_send(
+                master.target_system, master.target_component,
+                mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+                mavutil.mavlink.MAV_CMD_DO_REPOSITION,
+                0, 0, -1.0, mavutil.mavlink.MAV_DO_REPOSITION_FLAGS_CHANGE_MODE,
+                0.0, 0.0, int(hedef_komut_lat * 1e7), int(hedef_komut_lon * 1e7), secili_hedef['alt']
+            )
+            son_komut_zamani = su_an # sayacı guncelle
         # sistemi yormamak icin ekrani sadece belli araliklarla yeniliyorum
+        
         if su_an - son_cizim_zamani > 0.15:
             ax1.clear()
             ax2.clear()
