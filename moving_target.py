@@ -31,7 +31,7 @@ def hesapla_kerteriz(lat1, lon1, lat2, lon2):
     kerteriz = math.degrees(math.atan2(y, x))
     return (kerteriz + 360) % 360
 
-# rastgele 7 tane sahte hedef olusturuyorum
+# rastgele sahte hedef olusturuyorum
 hedef_sayisi = 1
 hedefler = []
 
@@ -104,8 +104,8 @@ try:
             
         # hedefleri haritada ufak ufak kaydirip adsb uzerinden basiyorum
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000009
-            hedef['lon'] += 0.000009
+            hedef['lat'] += 0.000001
+            hedef['lon'] += 0.000001
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
             master.mav.adsb_vehicle_send(
@@ -190,11 +190,12 @@ try:
             t_go = aktif_mesafe / anlik_ucak_hizi 
             hedef_komut_lat = secili_hedef['lat'] + (hedef_v_lat * t_go)
             hedef_komut_lon = secili_hedef['lon'] + (hedef_v_lon * t_go)
-            gudum_modu = "ÖNLEME"
+            gudum_modu = "önlemeli takip"
         else:
             hedef_komut_lat = secili_hedef['lat']
             hedef_komut_lon = secili_hedef['lon']
             gudum_modu = "SAF TAKİP"
+            
 
         print(f"target-{secili_hedef['id']} | Mod: {gudum_modu} | Hız: {hedef_hizi_ms:.1f}m/s | Mesafe: {aktif_mesafe:.1f}m")
         

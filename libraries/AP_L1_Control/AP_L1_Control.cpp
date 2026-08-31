@@ -20,7 +20,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Range: 0.6 1.0
     // @Increment: 0.05
     // @User: Advanced
-    AP_GROUPINFO("DAMPING",   1, AP_L1_Control, _L1_damping, 1.0f),
+    AP_GROUPINFO("DAMPING",   1, AP_L1_Control, _L1_damping, 0.707f),
 
     // @Param: XTRACK_I
     // @DisplayName: L1 control crosstrack integrator gain
