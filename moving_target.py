@@ -102,7 +102,7 @@ for i in range(hedef_sayisi):
         'yokedildi': False
     })
 
-print(f"{hedef_sayisi} adet hedef olusturuldu. STT Moduna geciliyor...")
+print(f"{hedef_sayisi} adet hedef olusturuldu")
 set_stt_mode(master)
 start_time = time.time()
 
