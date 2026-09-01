@@ -528,11 +528,22 @@ int16_t Plane::calc_nav_yaw_coordinated()
     bool using_rate_controller = false;
 
     // Received an external msg that guides yaw within g2.guided_timeout?
-    if (control_mode->is_guided_mode() &&
-            plane.guided_state.last_forced_rpy_ms.z > 0 &&
-            millis() - plane.guided_state.last_forced_rpy_ms.z < g2.guided_timeout*1000.0f) {
-        commanded_rudder = plane.guided_state.forced_rpy_cd.z;
-    } else if (autotuning && g.acro_yaw_rate > 0 && yawController.rate_control_enabled()) {
+    // --- BİZİM STT YAW GÜDÜM MÜDAHALEMİZ ---
+    if (control_mode != nullptr && control_mode->is_guided_mode() && nav_controller != nullptr) {
+        
+        // AP_L1_Control.cpp içinde hesaplayıp dışarı açtığın Yaw Rate hedefini (hedefe yönelme isteği) çek
+        float target_yaw_rate_cd = ((AP_L1_Control*)nav_controller)->nav_yaw_rate_cd();
+        
+        // ArduPlane'in Yaw Rate PID kontrolcüsünü kullanarak bu dönüşü motorlara/dümenlere bas
+        commanded_rudder = yawController.get_rate_out(target_yaw_rate_cd, speed_scaler, false);
+        using_rate_controller = true;
+        // KESİN KANIT: Yaw motorlarına ne kadar efor gittiğini 0.5 saniyede bir konsola basıyoruz
+        static uint32_t last_print_ms = 0;
+        if (AP_HAL::millis() - last_print_ms > 500) { 
+            gcs().send_text(MAV_SEVERITY_INFO, "Aktif Roll: %ld cd | YAW Torku: %d", (long)nav_roll_cd, commanded_rudder);
+            last_print_ms = AP_HAL::millis();
+        }
+    }else if (autotuning && g.acro_yaw_rate > 0 && yawController.rate_control_enabled()) {
         // user is doing an AUTOTUNE with yaw rate control
         const float rudd_expo = rudder_in_expo(true);
         const float yaw_rate = (rudd_expo/SERVO_MAX) * g.acro_yaw_rate;
@@ -645,6 +656,11 @@ void Plane::calc_nav_pitch()
 void Plane::calc_nav_roll()
 {
     int32_t commanded_roll = nav_controller->nav_roll_cd();
+    // BİZİM MİNİMAL ROLL (BTT-STT HİBRİT) MÜDAHALEMİZ
+    if (control_mode != nullptr && control_mode->is_guided_mode()) {
+        // Aerodinamik direnci kırmak için sadece +-15 derecelik (1500 cd) yatışa izin veriyoruz
+        commanded_roll = constrain_int32(commanded_roll, -1500, 1500);
+    }
     nav_roll_cd = constrain_int32(commanded_roll, -roll_limit_cd, roll_limit_cd);
     update_load_factor();
 }

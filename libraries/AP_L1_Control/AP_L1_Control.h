@@ -42,6 +42,9 @@ public:
     // return the heading error angle (centi-degrees) +ve to left of track
     int32_t bearing_error_cd(void) const override;
 
+    // ArduPlane'in STT Yaw komutumuzu okumasi icin kapı
+    int32_t nav_yaw_rate_cd(void) const { return _nav_yaw_rate_cd; }
+
     float crosstrack_error_m(void) const override { return _crosstrack_error; }
     float crosstrack_error_integrator(void) const override { return _L1_xtrack_i; }
 
@@ -88,6 +91,9 @@ private:
     // L1 tracking distance in meters which is dynamically updated
     float _L1_dist;
 
+    // STT icin urettigimiz Yaw Rate komutu (BEN EKLEDİM)
+    int32_t _nav_yaw_rate_cd;
+    
     // Status which is true when the vehicle has started circling the WP
     bool _WPcircle;
 
