@@ -537,10 +537,21 @@ int16_t Plane::calc_nav_yaw_coordinated()
         // ArduPlane'in Yaw Rate PID kontrolcüsünü kullanarak bu dönüşü motorlara/dümenlere bas
         commanded_rudder = yawController.get_rate_out(target_yaw_rate_cd, speed_scaler, false);
         using_rate_controller = true;
-        // KESİN KANIT: Yaw motorlarına ne kadar efor gittiğini 0.5 saniyede bir konsola basıyoruz
+        // RAPOR İÇİN KESİN KANIT: Sensör (AHRS) verileri ile komutları kıyaslıyoruz
         static uint32_t last_print_ms = 0;
         if (AP_HAL::millis() - last_print_ms > 500) { 
-            gcs().send_text(MAV_SEVERITY_INFO, "Aktif Roll: %ld cd | YAW Torku: %d", (long)nav_roll_cd, commanded_rudder);
+            // Okunabilirlik için centidegree'leri dereceye (deg) çeviriyoruz
+            int roll_hedef = nav_roll_cd / 100;
+            int roll_gercek = ahrs.roll_sensor / 100;
+            
+            // Sensörden gelen fiziksel gövde dönüş hızı (Yaw Rate - derece/saniye)
+            float yaw_gercek_rate = degrees(ahrs.get_gyro().z);
+            float yaw_hedef_rate = target_yaw_rate_cd / 100.0f; // centidegree/saniye -> derece/saniye
+
+
+            gcs().send_text(MAV_SEVERITY_INFO, "Roll[Hedef:%d Gercek:%d] | Yaw[hedef:%1.f deg/s gercek:%.1f deg/s | Tork:%d]", 
+                            roll_hedef, roll_gercek, (double)yaw_hedef_rate, (double)yaw_gercek_rate, commanded_rudder);
+            
             last_print_ms = AP_HAL::millis();
         }
     }else if (autotuning && g.acro_yaw_rate > 0 && yawController.rate_control_enabled()) {
