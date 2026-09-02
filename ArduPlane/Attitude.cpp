@@ -527,7 +527,7 @@ void Plane::calc_throttle()
 int16_t Plane::calc_nav_yaw_coordinated()
 {
     // --- STT (SKID-TO-TURN) INTERCEPTOR MODU --- (ben ekledim
-    // Eğer uçak otonom bir guided modundaysa, L1'den gelen STT yaw rate komutunu doğrudan uygula!
+    // Eğer uçak otonom bir guided modundaysa L1 den gelen STT yaw rate komutunu doğrudan uygula
     if (control_mode != nullptr && nav_controller != nullptr && control_mode->is_guided_mode()) {
         const float speed_scaler = get_speed_scaler();
         
@@ -537,6 +537,23 @@ int16_t Plane::calc_nav_yaw_coordinated()
         // ArduPlane'in hız kontrollü PID'sine verip rudder komutunu alıyoruz
         int16_t commanded_rudder = yawController.get_rate_out(target_yaw_rate_cd, speed_scaler, false);
         
+       // Sensör verileri ile komutları kıyaslıyoruz
+        static uint32_t last_print_ms = 0;
+        if (AP_HAL::millis() - last_print_ms > 500) { 
+            // Roll: Centidegree -> Derece
+            int roll_hedef = nav_roll_cd / 100;
+            int roll_gercek = ahrs.roll_sensor / 100;
+            
+            // Yaw: Hedeflenen hız (deg/s) ve Cayroskoptan okunan gerçek hız (deg/s)
+            float yaw_hedef_rate = target_yaw_rate_cd / 100.0f;
+            float yaw_gercek_rate = degrees(ahrs.get_gyro().z);
+
+            gcs().send_text(MAV_SEVERITY_INFO, "Roll[%d -> %d deg] | Yaw Hiz[Hedef:%.1f Gercek:%.1f deg/s] Tork:%d", 
+                            roll_hedef, roll_gercek, (double)yaw_hedef_rate, (double)yaw_gercek_rate, commanded_rudder);
+            
+            last_print_ms = AP_HAL::millis();
+        }
+
         return constrain_int16(commanded_rudder, -4500, 4500);
     }
     //orijinal kod aşağısı
