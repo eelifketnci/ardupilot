@@ -12,7 +12,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Range: 1 60
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("PERIOD",    0, AP_L1_Control, _L1_period, 5.0f),
+    AP_GROUPINFO("PERIOD",    0, AP_L1_Control, _L1_period, 7.0f),
 
     // @Param: DAMPING
     // @DisplayName: L1 control damping ratio
@@ -20,7 +20,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Range: 0.6 1.0
     // @Increment: 0.05
     // @User: Advanced
-    AP_GROUPINFO("DAMPING",   1, AP_L1_Control, _L1_damping, 1.0f),
+    AP_GROUPINFO("DAMPING",   1, AP_L1_Control, _L1_damping, 0.707f),
 
     // @Param: XTRACK_I
     // @DisplayName: L1 control crosstrack integrator gain

@@ -31,8 +31,8 @@ def hesapla_kerteriz(lat1, lon1, lat2, lon2):
     kerteriz = math.degrees(math.atan2(y, x))
     return (kerteriz + 360) % 360
 
-# rastgele 7 tane sahte hedef olusturuyorum
-hedef_sayisi = 7
+# rastgele 3 tane sahte hedef olusturuyorum
+hedef_sayisi = 3
 hedefler = []
 
 print("Uçağın baslangic konumu aliniyor...")
