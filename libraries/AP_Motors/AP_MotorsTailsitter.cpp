@@ -164,16 +164,20 @@ void AP_MotorsTailsitter::output_armed_stabilizing()
         limit.throttle_upper = true;
     }
 
+        // Doyum (Saturation) kısıtlarını her iki eksen için de belirt
     if (roll_thrust >= 1.0) {
-        // cannot split motor outputs by more than 1
-        roll_thrust = 1;
+        roll_thrust = 1.0f;
         limit.roll = true;
     }
+    if (yaw_thrust >= 1.0) {
+        yaw_thrust = 1.0f;
+        limit.yaw = true;
+    }
 
-    // calculate left and right throttle outputs
-    _thrust_left  = throttle_thrust + roll_thrust * 0.5f;
-    _thrust_right = throttle_thrust - roll_thrust * 0.5f;
-
+    // Mikser denklemini güncelle. Roll 0 olduğu an sadece Yaw tork farkı yaratır.
+    _thrust_left  = throttle_thrust + (roll_thrust * 0.5f) + (yaw_thrust * 0.5f);
+    _thrust_right = throttle_thrust - (roll_thrust * 0.5f) - (yaw_thrust * 0.5f);  
+    
     thrust_max = MAX(_thrust_right,_thrust_left);
     thrust_min = MIN(_thrust_right,_thrust_left);
     if (thrust_max > 1.0f) {
