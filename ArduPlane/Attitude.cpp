@@ -669,7 +669,7 @@ void Plane::calc_nav_roll()
     int32_t commanded_roll = nav_controller->nav_roll_cd();
     // BİZİM MİNİMAL ROLL (BTT-STT HİBRİT) MÜDAHALEMİZ
     if (control_mode != nullptr && control_mode->is_guided_mode()) {
-        // Aerodinamik direnci kırmak için sadece +-15 derecelik (1500 cd) yatışa izin veriyoruz
+         Aerodinamik direnci kırmak için sadece +-15 derecelik (1500 cd) yatışa izin veriyoruz
         commanded_roll = constrain_int32(commanded_roll, -1500, 1500);
     }
     nav_roll_cd = constrain_int32(commanded_roll, -roll_limit_cd, roll_limit_cd);
