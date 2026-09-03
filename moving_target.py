@@ -32,7 +32,7 @@ def hesapla_kerteriz(lat1, lon1, lat2, lon2):
     return (kerteriz + 360) % 360
 
 # rastgele sahte hedef olusturuyorum
-hedef_sayisi = 3
+hedef_sayisi = 1
 hedefler = []
 
 print("Uçağın baslangic konumu aliniyor...")
@@ -104,8 +104,8 @@ try:
             
         # hedefleri haritada ufak ufak kaydirip adsb uzerinden basiyorum
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000009
-            hedef['lon'] += 0.000009
+            hedef['lat'] += 0.0000001
+            hedef['lon'] += 0.0000001
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
             master.mav.adsb_vehicle_send(
