@@ -43,6 +43,8 @@ public:
     int32_t bearing_error_cd(void) const override;
 
     float crosstrack_error_m(void) const override { return _crosstrack_error; }
+     // ArduPlane'in STT Yaw komutumuzu okumasi icin kapı
+    int32_t nav_yaw_rate_cd(void) const { return _nav_yaw_rate_cd; }
     float crosstrack_error_integrator(void) const override { return _L1_xtrack_i; }
 
     int32_t target_bearing_cd(void) const override;
