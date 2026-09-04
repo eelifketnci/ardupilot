@@ -12,7 +12,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Range: 1 60
     // @Increment: 1
     // @User: Standard
-    AP_GROUPINFO("PERIOD",    0, AP_L1_Control, _L1_period, 5.0f),
+    AP_GROUPINFO("PERIOD",    0, AP_L1_Control, _L1_period, 60.0f),
 
     // @Param: DAMPING
     // @DisplayName: L1 control damping ratio
@@ -20,7 +20,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Range: 0.6 1.0
     // @Increment: 0.05
     // @User: Advanced
-    AP_GROUPINFO("DAMPING",   1, AP_L1_Control, _L1_damping, 0.707f),
+    AP_GROUPINFO("DAMPING",   1, AP_L1_Control, _L1_damping, 0.67f),
 
     // @Param: XTRACK_I
     // @DisplayName: L1 control crosstrack integrator gain
@@ -78,7 +78,7 @@ int32_t AP_L1_Control::get_yaw_sensor() const
  */
 int32_t AP_L1_Control::nav_roll_cd(void) const
 {
-    //roll is canceled for STT, so return 0
+    //roll is canceled for STT, so return 0, Uçak artık yatış yapmayacak (0 derece Roll)
     return 0;
 }
 
@@ -251,6 +251,9 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
 
     // 6. aradaki aci farkini hesaplayip -pi ile +pi arasina sikistiriyorum
     Nu = wrap_PI(target_bearing - ucak_bearing);
+    if (gercek_mesafe < 40.0f) {
+        Nu = 0.0f; 
+    }
 
     // loglarda duzgun gorunsun diye navigasyon acisini hedefe kilitliyorum
     _nav_bearing = target_bearing; 
@@ -267,9 +270,8 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
     
     // yanal ivme (yatis) emrini hesaplayip ucaga gonderiyorum
-    _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    float lat_accel = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
     // 2. L1 algoritmasının ürettiği yanal ivme (m/s^2)
-    float lat_accel = _latAccDem; 
     // 3. Sıfıra bölünme hatasını önlemek için minimum 1 m/s hız sınırı koy
     float ground_speed = MAX(_ahrs.groundspeed(), 1.0f); 
     // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden)

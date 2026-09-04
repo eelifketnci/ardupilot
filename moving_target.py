@@ -179,7 +179,7 @@ try:
         # -----------------------------------
 
         # eger hedef dibime girip arkamda kaldiysa bosuna donmeye calisma, kilidi kirip pas gec
-        if aktif_mesafe < (r_min * 1.5) and aktif_aci_farki > 90.0:
+        if aktif_mesafe < (r_min) and aktif_aci_farki > 90.0:
             print(f"!!! target-{secili_hedef['id']} ISKALANDI / PAS GECILIYOR! (Ters Açı: {aktif_aci_farki:.1f}°) !!!")
             secili_hedef = None 
             continue

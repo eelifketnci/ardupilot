@@ -18,6 +18,7 @@
 
 #include "Plane.h"
 #include <utility>
+float l1_skid_hedefi = 0.0f; // YENİ KÖPRÜ DEĞİŞKENİ
 
 /*****************************************
 * Throttle slew limit
@@ -1017,6 +1018,8 @@ void Plane::indicate_waiting_for_rud_neutral_to_takeoff(void)
  */
 void Plane::servos_output(void)
 {
+    // L1 hedefini kütüphaneler arası transfer için değişkene yaz
+    l1_skid_hedefi = plane.L1_controller.nav_yaw_rate_cd();
     auto &srv = AP::srv();
     srv.cork();
 
@@ -1053,6 +1056,40 @@ void Plane::servos_output(void)
     }
 
     SRV_Channels::calc_pwm();
+    float l1_yaw_hedefi_cd = plane.L1_controller.nav_yaw_rate_cd(); 
+
+    if (plane.control_mode == &mode_guided) {
+        
+        // Çarpanı artırıyoruz ki hedef büyüdükçe motorlar yeterli gücü üretsin
+        int16_t diff_pwm = (int16_t)(l1_yaw_hedefi_cd * 0.17f);
+        plane.nav_roll_cd = 0;
+        // Sınırı 30'dan 120 PWM'e çıkarıyoruz (Toplamda 240 PWM tork makası)
+        // Bu güç, uçağı takla attırmadan rüzgar direncini kırıp döndürmeye yeterlidir.
+        diff_pwm = constrain_int16(diff_pwm, -75, 75);
+
+        SRV_Channel *ch1 = SRV_Channels::srv_channel(0); // Sağ Ön
+        SRV_Channel *ch2 = SRV_Channels::srv_channel(1); // Sol Arka
+        SRV_Channel *ch3 = SRV_Channels::srv_channel(2); // Sol Ön
+        SRV_Channel *ch4 = SRV_Channels::srv_channel(3); // Sağ Arka
+
+        if (ch1 && ch2 && ch3 && ch4) {
+            int16_t m1_pwm = ch1->get_output_pwm();
+            int16_t m2_pwm = ch2->get_output_pwm();
+            int16_t m3_pwm = ch3->get_output_pwm();
+            int16_t m4_pwm = ch4->get_output_pwm();
+
+            if (m1_pwm > 1200 && m2_pwm > 1200) {
+                // Doğru Çapraz Gruplama
+                ch1->set_output_pwm(constrain_int16(m1_pwm -  diff_pwm, 1100, 1900));
+                ch4->set_output_pwm(constrain_int16(m4_pwm -  diff_pwm, 1100, 1900));
+                
+                ch2->set_output_pwm(constrain_int16(m2_pwm +  diff_pwm, 1100, 1900));
+                ch3->set_output_pwm(constrain_int16(m3_pwm +  diff_pwm, 1100, 1900));
+            }
+        }
+    }
+    // --------------------------------------------------------------
+    
 
     SRV_Channels::output_ch_all();
 
