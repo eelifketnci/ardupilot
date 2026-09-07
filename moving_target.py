@@ -104,8 +104,8 @@ try:
             
         # hedefleri haritada ufak ufak kaydirip adsb uzerinden basiyorum
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000001
-            hedef['lon'] += 0.000001
+            hedef['lat'] += 0.000008
+            hedef['lon'] += 0.000008
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
             master.mav.adsb_vehicle_send(
@@ -183,7 +183,8 @@ try:
             print(f"!!! target-{secili_hedef['id']} ISKALANDI / PAS GECILIYOR! (Ters Açı: {aktif_aci_farki:.1f}°) !!!")
             secili_hedef = None 
             continue
-
+            
+    
         # eger hedef hizliysa onune dogru (onleme), yavas ise tam ustune (saf takip) ucuyorum
         HIZ_ESIGI = 3.0 
         if hedef_hizi_ms > HIZ_ESIGI:

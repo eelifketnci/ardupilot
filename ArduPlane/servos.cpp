@@ -1056,7 +1056,7 @@ void Plane::servos_output(void)
     }
 
     SRV_Channels::calc_pwm();
-    float l1_yaw_hedefi_cd = plane.L1_controller.nav_yaw_rate_cd(); 
+    float l1_yaw_hedefi_cd = plane.L1_controller.nav_yaw_rate_cd(); // yaw rate cds yap değişkeni
 
     if (plane.control_mode == &mode_guided) {
         

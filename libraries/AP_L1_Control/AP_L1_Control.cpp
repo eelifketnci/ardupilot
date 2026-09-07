@@ -328,7 +328,7 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
     float lat_accel = _latAccDem; 
     // 3. Sıfıra bölünme hatasını önlemek için minimum 1 m/s hız sınırı koy
     float ground_speed = MAX(_ahrs.groundspeed(), 1.0f); 
-    // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden)
+    // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden) cmd ekle
     float yaw_rate_rads = lat_accel / ground_speed;
     // 5. ArduPlane kontrolcüsü için radyanı derece/saniyeye (veya centidegree) çevir
     float yaw_rate_degs = degrees(yaw_rate_rads);
