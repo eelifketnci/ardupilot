@@ -335,8 +335,7 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     float rpy_high = -1.0f; // highest thrust value
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
-            _thrust_rpyt_out[i] = _thrust_rpyt_out[i] + yaw_thrust * _yaw_factor[i];
-
+            _thrust_rpyt_out[i] = _thrust_rpyt_out[i] + yaw_thrust  * _yaw_factor[i];
             // record lowest roll + pitch + yaw command
             if (_thrust_rpyt_out[i] < rpy_low) {
                 rpy_low = _thrust_rpyt_out[i];

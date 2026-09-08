@@ -180,7 +180,7 @@ static const struct AP_Param::defaults_table_struct defaults_table_tailsitter[] 
     { "PTCH_LIM_MAX_DEG",  30 },
     { "PTCH_LIM_MIN_DEG", -30 },
     { "MIXING_GAIN",      1.0 },
-    { "RUDD_DT_GAIN",      10 },
+    { "RUDD_DT_GAIN",      100 },
     { "Q_TRANSITION_MS",   2000 },
     { "Q_TRANS_DECEL",    6 },
     { "Q_A_ACC_P_MAX",     300},
