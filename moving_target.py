@@ -62,6 +62,9 @@ zaman_gecmisi = []
 mesafe_gecmisi = []
 aci_farki_gecmisi = [] # YENİ: Uçağın hedefe olan açı hatası
 rmin_gecmisi = []      # YENİ: Anlık minimum dönüş yarıçapı
+yaw_cmd_gecmisi = []   # DAHA YENİ: Hedef Yaw Rate
+yaw_act_gecmisi = []   # DAHA YENİ: Gerçekleşen Yaw Rate
+son_gercek_yaw_rate = 0.0 # Döngüde Attitude mesajı kaçarsa diye tutucu
 vurus_noktalari = []
 hedef_gecmisleri = {i+1: {'lat': [], 'lon': []} for i in range(hedef_sayisi)}
 
@@ -74,6 +77,8 @@ plt.show(block=False)
 son_cizim_zamani = time.time()
 # ana görev dongusune basliyoruz
 secili_hedef = None  
+son_zaman_yaw = time.time()
+son_heading_yaw = None
 
 try:
     while True:
@@ -104,8 +109,8 @@ try:
             
         # hedefleri haritada ufak ufak kaydirip adsb uzerinden basiyorum
         for hedef in kalan_hedefler:
-            hedef['lat'] += 0.000000
-            hedef['lon'] += 0.000000
+            hedef['lat'] += 0.000009
+            hedef['lon'] += 0.000009
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
             master.mav.adsb_vehicle_send(
@@ -169,7 +174,7 @@ try:
         maks_yatis_acisi = math.radians(45.0)
         r_min = (anlik_ucak_hizi**2) / (g * math.tan(maks_yatis_acisi))
         
-        # hedef benim burnuma gore tam nerede kaldi
+        #-----------------hedef benim burnuma gore tam nerede kaldi
         aktif_kerteriz = hesapla_kerteriz(avci_lat, avci_lon, secili_hedef['lat'], secili_hedef['lon'])
         aktif_aci_farki = abs((aktif_kerteriz - avci_heading + 180) % 360 - 180)
         
@@ -177,6 +182,37 @@ try:
         aci_farki_gecmisi.append(aktif_aci_farki)
         rmin_gecmisi.append(r_min)
         # -----------------------------------
+        # --- GERÇEK YAW RATE (PUSULA TÜREVİ) ---
+        dt_yaw = su_an - son_zaman_yaw
+        if son_heading_yaw is not None and dt_yaw > 0:
+            # İki ölçüm arasındaki açı farkını bul (-180 ile +180 arasına sıkıştır)
+            delta_hdg = (avci_heading - son_heading_yaw + 180) % 360 - 180
+            son_gercek_yaw_rate = delta_hdg / dt_yaw
+        else:
+            son_gercek_yaw_rate = 0.0
+
+        son_heading_yaw = avci_heading
+        son_zaman_yaw = su_an
+
+        # --- YAW RATE MATEMATİKSEL MODELİ (Hedef Yaw Rate İçin) ---
+        # 1. İşaretli açı hatasını bul (Sağ pozitif, Sol negatif)
+        aci_hatasi_isaretli = (aktif_kerteriz - avci_heading + 180) % 360 - 180
+        aci_hatasi_rad = math.radians(aci_hatasi_isaretli)
+        
+        # 2. C++ L1_dist hesabı: 0.3183 * damping(0.75) * period(17) = ~4.058
+        L1_dist = 4.058 * anlik_ucak_hizi
+        if aktif_mesafe < L1_dist:
+            L1_dist = max(aktif_mesafe, 5.0) # Senin yazdığın pure pursuit ezmesi
+            
+        # 3. Yanal ivme ve Yaw Rate denklemlerinin çıkarılması
+        # K_L1 = 4 * (0.75^2) = 2.25
+        lat_accel = 2.25 * (anlik_ucak_hizi**2) / L1_dist * math.sin(aci_hatasi_rad)
+        hedef_yaw_rate = math.degrees(lat_accel / anlik_ucak_hizi)
+        
+        # 4. Grafikler için listelere ekle
+        yaw_cmd_gecmisi.append(hedef_yaw_rate)
+        yaw_act_gecmisi.append(son_gercek_yaw_rate)
+        # ----------------------------------------------------------
 
         # eger hedef dibime girip arkamda kaldiysa bosuna donmeye calisma, kilidi kirip pas gec
         if aktif_mesafe < (r_min) and aktif_aci_farki > 90.0:
@@ -256,16 +292,20 @@ try:
             ax3.grid(True)
             ax3.legend()
 
-            # --- 4. KİNEMATİK SINIR VE BREAKAWAY (ax4) ---
-            if mesafe_gecmisi and rmin_gecmisi:
-                ax4.plot(zaman_gecmisi[-len(mesafe_gecmisi):], mesafe_gecmisi, color='purple', linewidth=2, label='Hedef Mesafesi')
-                ax4.plot(zaman_gecmisi[-len(rmin_gecmisi):], [r * 1.5 for r in rmin_gecmisi], color='red', linestyle='-.', linewidth=2, label='Pas Geçme Sınırı')
-                ax4.fill_between(zaman_gecmisi[-len(rmin_gecmisi):], 0, [r * 1.5 for r in rmin_gecmisi], color='red', alpha=0.1)
-            ax4.set_title('4. Kinematik Sınır ve Breakaway')
-            ax4.set_ylabel('Mesafe (m)')
+            # --- 4. YAW RATE TAKİBİ (ax4) ---
+            if yaw_cmd_gecmisi and yaw_act_gecmisi:
+                # Hedef ve Gerçekleşen sinyalleri çizdir
+                ax4.plot(zaman_gecmisi[-len(yaw_cmd_gecmisi):], yaw_cmd_gecmisi, color='blue', linewidth=2, linestyle='--', label='Hedef (CMD)')
+                ax4.plot(zaman_gecmisi[-len(yaw_act_gecmisi):], yaw_act_gecmisi, color='green', linewidth=2.5, label='Gerçek (ACT)')
+                
+                # Aradaki hatayı (Error) görselleştirmek için gölgelendirme (Shading)
+                ax4.fill_between(zaman_gecmisi[-len(yaw_cmd_gecmisi):], yaw_cmd_gecmisi, yaw_act_gecmisi, color='red', alpha=0.15, label='Hata (Error)')
+                
+            ax4.set_title('4. L1 Kapalı Çevrim Yaw Rate Takibi')
+            ax4.set_ylabel('Yaw Rate (deg/s)')
             ax4.set_xlabel('Zaman (s)')
             ax4.grid(True)
-            ax4.legend()
+            ax4.legend(loc='upper right')
 
             plt.pause(0.001) 
             son_cizim_zamani = su_an

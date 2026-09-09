@@ -246,63 +246,45 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     }
 
     // 4. hedefin ucağa gore acisini buluyorum
-        float target_bearing = atan2f(
-        ucak_hedef_vektoru.y,
-        ucak_hedef_vektoru.x
-    );
+    float target_bearing = atan2f(ucak_hedef_vektoru.y, ucak_hedef_vektoru.x);
 
-    float aircraft_yaw = get_yaw();
+    // 5. ucagin burnunun baktigi aciyi buluyorum
+    float ucak_bearing = atan2f(_groundspeed_vector.y, _groundspeed_vector.x);
 
-    Nu = wrap_PI(target_bearing - aircraft_yaw);
+    // 6. aradaki aci farkini hesaplayip -pi ile +pi arasina sikistiriyorum
+    Nu = wrap_PI(target_bearing - ucak_bearing);
+    if (gercek_mesafe < 40.0f) {
+        Nu = 0.0f; 
+    }
 
-    _nav_bearing = target_bearing;
+    // loglarda duzgun gorunsun diye navigasyon acisini hedefe kilitliyorum
+    _nav_bearing = target_bearing; 
+
+    // biz cizgi degil hareketli hedef takip ettigimiz icin capraz hatayi (crosstrack error) sifirliyorum
     _crosstrack_error = 0.0f;
+
+    // --- saf takip mantigi bitti ---
 
     _prevent_indecision(Nu);
     _last_Nu = Nu;
 
-    Nu = constrain_float(Nu, -M_PI_2, M_PI_2);
+    // ucak sacmalamasin diye hata acisini +- 90 derece ile sinirliyorum
+    Nu = constrain_float(Nu, -1.5708f, +1.5708f);
+    
+    // yanal ivme (yatis) emrini hesaplayip ucaga gonderiyorum
+    float lat_accel = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    // 2. L1 algoritmasının ürettiği yanal ivme (m/s^2)
+    // 3. Sıfıra bölünme hatasını önlemek için minimum 1 m/s hız sınırı koy
+    float ground_speed = MAX(_ahrs.groundspeed(), 1.0f); 
+    // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden)
+    float yaw_rate_rads = lat_accel / ground_speed;
+    // 5. ArduPlane kontrolcüsü için radyanı derece/saniyeye (veya centidegree) çevir
+    float yaw_rate_degs = degrees(yaw_rate_rads);
+    _nav_yaw_rate_cd = (int32_t)(yaw_rate_degs * 100.0f); // centidegree cinsinden
 
-    _latAccDem =
-        K_L1 * groundSpeed * groundSpeed
-        / _L1_dist * sinf(Nu);
-
-    float ground_speed = MAX(_ahrs.groundspeed(), 1.0f);
-
-    float yaw_rate_rads =
-        _latAccDem / ground_speed;
-
-    float yaw_rate_degs =
-        degrees(yaw_rate_rads);
-
-    _nav_yaw_rate_cd =
-        (int32_t)(yaw_rate_degs * 100.0f);
-
-        _WPcircle = false;
-        _last_loiter.reached_loiter_target_ms = 0;
-        _bearing_error = Nu; 
-        static uint32_t last_debug_ms = 0;
-
-    if (AP_HAL::millis() - last_debug_ms > 200) {
-
-        float yaw_deg = degrees(get_yaw());
-        float gyro_z_dps = degrees(_ahrs.get_gyro().z);
-        float nu_deg = degrees(Nu);
-        float yaw_cmd_dps = _nav_yaw_rate_cd * 0.01f;
-        float target_bearing_deg = degrees(target_bearing);
-
-        hal.console->printf(
-            "DIST: %.1f | T: %.1f | NU: %.1f | YAW: %.1f | CMD: %.1f | GYRZ: %.1f\n",
-            (double)gercek_mesafe,
-            (double)target_bearing_deg,
-            (double)nu_deg,
-            (double)yaw_deg,
-            (double)yaw_cmd_dps,
-            (double)gyro_z_dps
-        );
-
-        last_debug_ms = AP_HAL::millis();
-    }
+    _WPcircle = false;
+    _last_loiter.reached_loiter_target_ms = 0;
+    _bearing_error = Nu; 
     _data_is_stale = false; 
 }
 
@@ -343,15 +325,15 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
     
     // 4. dogrudan hedefe donmesi icin yatis ivmesini basiyorum
-    //_latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
     // 2. L1 algoritmasının ürettiği yanal ivme (m/s^2)
-    float lat_accel = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+    float lat_accel = _latAccDem; 
     // 3. Sıfıra bölünme hatasını önlemek için minimum 1 m/s hız sınırı koy
     float ground_speed = MAX(_ahrs.groundspeed(), 1.0f); 
     // 4. Senin denklemin: Yaw Rate (Radyan/saniye cinsinden) cmd ekle
-    float yaw_rate_rads_cmd = lat_accel / ground_speed;
+    float yaw_rate_rads = lat_accel / ground_speed;
     // 5. ArduPlane kontrolcüsü için radyanı derece/saniyeye (veya centidegree) çevir
-    float yaw_rate_degs = degrees(yaw_rate_rads_cmd);
+    float yaw_rate_degs = degrees(yaw_rate_rads);
     _nav_yaw_rate_cd = (int32_t)(yaw_rate_degs * 100.0f); // centidegree cinsinden
 
     // 5. ardupilotu daire cizmedigime inandirmak icin wbpcircle bayragini false yapiyorum :)
@@ -359,7 +341,6 @@ void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_
     _bearing_error = Nu; 
     _data_is_stale = false; 
 }
-
 
 
 // update L1 control for heading hold navigation

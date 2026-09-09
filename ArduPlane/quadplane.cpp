@@ -914,29 +914,31 @@ void QuadPlane::run_esc_calibration(void)
  */
 void QuadPlane::multicopter_attitude_rate_update(float yaw_rate_cds)
 {
-    //BEN EKLEDİM------------------------
+     //BEN EKLEDİM------------------------
+
     if (plane.control_mode->is_guided_mode()) {
-        yaw_rate_cds = plane.L1_controller.nav_yaw_rate_cd();
+    yaw_rate_cds = plane.L1_controller.nav_yaw_rate_cd();
     }
+
     static uint32_t last_print_ms = 0;
-
     if (AP_HAL::millis() - last_print_ms > 500) {
-
-        float yaw_cmd_dps = yaw_rate_cds * 0.01f;
+        //float yaw_cmd_dps = yaw_rate_cds * 0.01f;
         float yaw_actual_dps = degrees(ahrs.get_gyro().z);
-        float yaw_error_dps = yaw_cmd_dps - yaw_actual_dps;
-
+        //float yaw_error_dps = yaw_cmd_dps - yaw_actual_dps;
+        // --- HANGİ PID ÇALIŞIYOR KANITI ---
+        // VTOL Roll ve Yaw PID'lerinin o an ürettiği oransal (P) eforu çekiyoruz
+        float copter_roll_efor = attitude_control->get_rate_roll_pid().get_pid_info().P;
+        float copter_yaw_efor = attitude_control->get_rate_yaw_pid().get_pid_info().P;
         gcs().send_text(
-            MAV_SEVERITY_INFO,
-            "YAW CMD: %.1f ACT: %.1f ERR: %.1f",
-            (double)yaw_cmd_dps,
-            (double)yaw_actual_dps,
-            (double)yaw_error_dps
+        MAV_SEVERITY_INFO,
+        "YAW ACT: %.1f | C-ROLL PID: %.3f | C-YAW PID: %.3f",
+        (double)yaw_actual_dps,
+        (double)copter_roll_efor,
+        (double)copter_yaw_efor
         );
-
         last_print_ms = AP_HAL::millis();
     }
-    // ------------------------------------
+    // ------------------------------------ 
     bool use_multicopter_control = in_vtol_mode() && !tailsitter.in_vtol_transition() && !force_fw_control_recovery;
     bool use_yaw_target = false;
 
