@@ -42,8 +42,8 @@ baslangic_lon = msg.lon / 1e7
 
 for i in range(hedef_sayisi):
     # hedefleri ucagin etrafinda rastgele konumlara atiyorum
-    hedef_lat = baslangic_lat + random.uniform(-0.005, 0.005)
-    hedef_lon = baslangic_lon + random.uniform(-0.005, 0.005)
+    hedef_lat = baslangic_lat + 0.004
+    hedef_lon = baslangic_lon + 0.004
     hedefler.append({
         'id': i + 1,
         'lat': hedef_lat,
