@@ -67,11 +67,6 @@ yaw_act_gecmisi = []   # DAHA YENİ: Gerçekleşen Yaw Rate
 son_gercek_yaw_rate = 0.0 # Döngüde Attitude mesajı kaçarsa diye tutucu
 vurus_noktalari = []
 hedef_gecmisleri = {i+1: {'lat': [], 'lon': []} for i in range(hedef_sayisi)}
-hedef_dikey_hiz = 0.05  # Her döngü adımında eklenecek irtifa (metre) YENİ 15.09
-# --- YENİ: İrtifa grafiği için geçmiş listeleri ---
-avci_alt_gecmisi = []
-hedef_alt_gecmisi = []
-# ------------------------------------------------
 
 # 1. İnteraktif Modu Aç (CANLI GRAFİK İÇİN 2x2 EKRAN)
 plt.ion() 
@@ -98,42 +93,25 @@ try:
         avci_heading = msg.hdg / 100.0 
         avci_alt = msg.relative_alt / 1000.0  # YENİ: Uçağın anlık yüksekliğini (metre) al
         gecen_sure = su_an - start_time
-
-        # ========================================================
-        # GRAFİK İÇİN LİSTELERE EKLEME KISMI (BURAYI GÜNCELLE)
-        # ========================================================
+        
+        # grafik icin listelere ekliyorum
         avci_lat_gecmisi.append(avci_lat)
         avci_lon_gecmisi.append(avci_lon)
         zaman_gecmisi.append(gecen_sure)
         
-        # İrtifa listelerine ekleme (Zaman listesiyle birebir aynı sayıda olmalı)
-        avci_alt_gecmisi.append(avci_alt)
-        
-        if secili_hedef is not None:
-            hedef_alt_gecmisi.append(secili_hedef['alt'])
-        else:
-            kalanlar = [h for h in hedefler if not h['yokedildi']]
-            if kalanlar:
-                hedef_alt_gecmisi.append(kalanlar[0]['alt'])
-            else:
-                # Tüm hedefler vurulduysa son irtifayı koru
-                son_irtifa = hedef_alt_gecmisi[-1] if len(hedef_alt_gecmisi) > 0 else 100.0
-                hedef_alt_gecmisi.append(son_irtifa)
-        # ========================================================
-        
-
         # vurulmamis hedefleri filtreliyorum
         kalan_hedefler = [h for h in hedefler if not h['yokedildi']]
         
         if not kalan_hedefler:
             print(f"\nTEBRIKLER! Tum hedefler {gecen_sure:.1f} saniyede yok edildi!")
-            break  # Döngüden çık, aşağıdaki grafik çizim kısmına geçecek
+            plt.ioff() # isimiz bitti, ekran kapanmasin diye kapatiyorum
+            plt.show()
+            break 
             
         # hedefleri haritada ufak ufak kaydirip adsb uzerinden basiyorum
         for hedef in kalan_hedefler:
             hedef['lat'] += 0.000009
             hedef['lon'] += 0.000009
-            hedef['alt'] += hedef_dikey_hiz  # YENİ 15.09
             hedef_gecmisleri[hedef['id']]['lat'].append(hedef['lat'])
             hedef_gecmisleri[hedef['id']]['lon'].append(hedef['lon'])
             master.mav.adsb_vehicle_send(
@@ -261,9 +239,8 @@ try:
         
     
         # YENİ: Uçağın sürekli tırmanma/dalma kavgasına girmemesi için hedef yüksekliği kendi yüksekliğine eşitliyoruz
-        #hedef_komut_alt = avci_alt 
-        hedef_komut_alt = secili_hedef['alt']# Yeni 15.09: Hedefin kendi yüksekliğini koruması için secili_hedef['alt'] kullanılıyor
-
+        hedef_komut_alt = avci_alt 
+        
         master.mav.command_int_send(
             master.target_system, master.target_component,
             mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
@@ -342,27 +319,3 @@ try:
 
 except KeyboardInterrupt:
     print("\nGorev iptal edildi.")
-# ==========================================
-# GÖREV SONU: İRTİFA KARŞILAŞTIRMA GRAFİĞİ
-# ==========================================
-print("\nGörev sonlandı. İrtifa analiz grafiği açılıyor...")
-plt.ioff() # İnteraktif (canlı) moddan çık
-
-# Yeni bir pencerede irtifa grafiği oluştur
-plt.figure(figsize=(12, 6))
-plt.plot(zaman_gecmisi, avci_alt_gecmisi, label="Avcı Drone İrtifası (Gerçekleşen)", color="blue", linewidth=2.5)
-plt.plot(zaman_gecmisi, hedef_alt_gecmisi, label="Hedef İrtifası (Referans)", color="red", linestyle="--", linewidth=2.5)
-
-# Vurulan noktaları irtifa grafiğinde de gösterelim (isteğe bağlı)
-for vn in vurus_noktalari:
-    # vn[2] vurulan hedefin id'si. O anki zamanı bulmak için basit bir yaklaşım
-    plt.axvline(x=zaman_gecmisi[-1], color='green', linestyle=':', label='Hedef Vuruldu')
-
-plt.title("Simülasyon Sonu: Drone ve Hedef İrtifa Takip Analizi", fontsize=14)
-plt.xlabel("Zaman (Saniye)", fontsize=12)
-plt.ylabel("İrtifa (Metre)", fontsize=12)
-plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-plt.legend(fontsize=12)
-
-# Ekranda tut (Hem 4'lü canlı ekran hem de yeni irtifa ekranı açık kalacak)
-plt.show()
