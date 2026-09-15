@@ -91,6 +91,7 @@ try:
         avci_lat = msg.lat / 1e7
         avci_lon = msg.lon / 1e7
         avci_heading = msg.hdg / 100.0 
+        avci_alt = msg.relative_alt / 1000.0  # YENİ: Uçağın anlık yüksekliğini (metre) al
         gecen_sure = su_an - start_time
         
         # grafik icin listelere ekliyorum
@@ -237,12 +238,15 @@ try:
         print(f"target-{secili_hedef['id']} | Mod: {gudum_modu} | Hız: {hedef_hizi_ms:.1f}m/s | Mesafe: {aktif_mesafe:.1f}m")
         
     
+        # YENİ: Uçağın sürekli tırmanma/dalma kavgasına girmemesi için hedef yüksekliği kendi yüksekliğine eşitliyoruz
+        hedef_komut_alt = avci_alt 
+        
         master.mav.command_int_send(
             master.target_system, master.target_component,
             mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
             mavutil.mavlink.MAV_CMD_DO_REPOSITION,
             0, 0, -1.0, mavutil.mavlink.MAV_DO_REPOSITION_FLAGS_CHANGE_MODE,
-            0.0, 0.0, int(hedef_komut_lat * 1e7), int(hedef_komut_lon * 1e7), secili_hedef['alt']
+            0.0, 0.0, int(hedef_komut_lat * 1e7), int(hedef_komut_lon * 1e7), hedef_komut_alt
         )
     
         # sistemi yormamak icin ekrani sadece belli araliklarla yeniliyorum
